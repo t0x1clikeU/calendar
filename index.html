@@ -1,93 +1,186 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ㄟ(｀∀´)ㄏ勤務カレンダー</title>
-  <style>
-    body{font-family:'Segoe UI',sans-serif;margin:20px;background:#fafafa;color:#333;text-align:center}
-    h1{font-size:1.3rem;margin-bottom:12px}
-    .controls{margin-bottom:16px}
-    input,select,button{padding:6px 10px;border:1px solid #ccc;border-radius:6px;font-size:0.9rem}
-    button{background:#0077b6;color:#fff;cursor:pointer;border:none}
-    button:hover{background:#005f86}
-    .calendar{display:flex;flex-wrap:wrap;justify-content:center;gap:20px}
-    .month{background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.1);padding:10px;width:300px}
-    h3{margin:4px 0;font-size:1rem}
-    table{width:100%;border-collapse:collapse;font-size:0.85rem}
-    th,td{padding:4px;border:1px solid #eee;text-align:center}
-    td span{display:block}
-    .休{color:#d62828}
-    .朝{color:#0077b6}
-    .昼{color:#ffb703}
-    .夜{color:#6a4c93}
-  </style>
-</head>
-<body>
-  <h1>ㄟ(｀∀´)ㄏカレンダー</h1>
-  <div class="controls">
-    基準日（1日目の休暇）<input type="date" id="baseDate" value="2025-10-20">　
-    <input type="month" id="startMonth" value="2025-10">
-    <select id="monthsToShow"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select>
-    <button id="renderBtn">表示</button>
-  </div>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>カレンダー</title>
 
-  <div id="calendar" class="calendar"></div>
+<style>
+body{
+  font-family:'Segoe UI',sans-serif;
+  margin:20px;
+  background:#f4f6f8;
+  color:#333;
+  text-align:center
+}
+h1{font-size:1.4rem;margin-bottom:14px}
+
+.controls{
+  margin-bottom:18px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  justify-content:center
+}
+
+input,select,button{
+  padding:8px 12px;
+  border-radius:8px;
+  border:1px solid #ccc;
+  font-size:0.9rem
+}
+
+button{
+  background:#0077b6;
+  color:#fff;
+  border:none;
+  cursor:pointer
+}
+button:hover{background:#005f86}
+
+.calendar{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:22px
+}
+
+.month{
+  background:#fff;
+  border-radius:12px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.08);
+  padding:14px;
+  width:320px
+}
+
+.month h3{
+  margin:6px 0 10px;
+  font-size:1.05rem
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:0.85rem
+}
+
+td{
+  padding:6px;
+  border:1px solid #eee;
+  text-align:center;
+  vertical-align:top;
+}
+
+td span{
+  display:block;
+}
+
+td span:first-child{
+  font-weight:600;
+  font-size:0.85rem;
+  margin-bottom:2px;
+}
+
+
+.today{
+  background:#e3f2fd;
+  border:2px solid #2196f3
+}
+
+.休{color:#d62828}
+.朝{color:#0077b6}
+.昼{color:#f59e0b}
+.夜{color:#6a4c93}
+</style>
+</head>
+
+<body>
+<h1>勤務カレンダー</h1>
+
+<div class="controls">
+  基準日（1日目の休）
+  <input type="date" id="baseDate">
+  表示月数
+  <select id="monthsToShow">
+    <option>1</option><option selected>2</option><option>3</option>
+    <option>4</option><option>5</option><option>6</option>
+    <option>7</option><option>8</option><option>9</option>
+    <option>10</option><option>11</option><option>12</option>
+  </select>
+  <button id="renderBtn">表示</button>
+</div>
+
+<div id="calendar" class="calendar"></div>
 
 <script>
-(function(){
-  const cycle = ['休','休','朝','朝','昼','昼','夜','夜'];
-  const baseInput = document.getElementById('baseDate');
-  const startInput = document.getElementById('startMonth');
-  const monthsSelect = document.getElementById('monthsToShow');
-  const btn = document.getElementById('renderBtn');
-  const container = document.getElementById('calendar');
+(() => {
+  const cycle = ['休','休','朝','朝','昼','昼','夜','夜']
+  const baseInput = document.getElementById('baseDate')
+  const monthsSelect = document.getElementById('monthsToShow')
+  const btn = document.getElementById('renderBtn')
+  const container = document.getElementById('calendar')
 
-  function dateDiffDays(a,b){
-    const utc1 = Date.UTC(a.getFullYear(),a.getMonth(),a.getDate());
-    const utc2 = Date.UTC(b.getFullYear(),b.getMonth(),b.getDate());
-    return Math.floor((utc2-utc1)/(86400000));
+  const today = new Date()
+  const todayStr = today.toISOString().slice(0,10)
+  baseInput.value = baseInput.value || todayStr
+
+  function diffDays(a,b){
+    return Math.floor(
+      (Date.UTC(b.getFullYear(),b.getMonth(),b.getDate()) -
+       Date.UTC(a.getFullYear(),a.getMonth(),a.getDate())) / 86400000
+    )
   }
 
   function render(){
-    container.innerHTML='';
-    const base = new Date(baseInput.value+'T00:00');
-    const [sy, sm] = startInput.value.split('-').map(Number);
-    const months = parseInt(monthsSelect.value,10);
+    container.innerHTML=''
+    const base = new Date(baseInput.value+'T00:00')
+    const months = parseInt(monthsSelect.value,10)
+
     for(let m=0;m<months;m++){
-      const year = sy + Math.floor((sm-1 + m)/12);
-      const month = (sm-1 + m)%12;
-      const first = new Date(year,month,1);
-      const last = new Date(year,month+1,0);
+      const y = today.getFullYear()
+      const mo = today.getMonth() + m
+      const first = new Date(y,mo,1)
+      const last = new Date(y,mo+1,0)
 
-      const div = document.createElement('div');
-      div.className='month';
-      div.innerHTML = `<h3>${year}年 ${month+1}月</h3>`;
-      const tbl = document.createElement('table');
-      tbl.innerHTML='<thead><tr><th>日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th>土</th></tr></thead>';
-      const tb=document.createElement('tbody');
+      const box = document.createElement('div')
+      box.className='month'
+      box.innerHTML=`<h3>${first.getFullYear()}年 ${first.getMonth()+1}月</h3>`
 
-      let tr=document.createElement('tr');
-      for(let i=0;i<first.getDay();i++) tr.appendChild(document.createElement('td'));
+      const table=document.createElement('table')
+      table.innerHTML='<thead><tr><th>日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th>土</th></tr></thead>'
+      const tbody=document.createElement('tbody')
+      let tr=document.createElement('tr')
+
+      for(let i=0;i<first.getDay();i++) tr.appendChild(document.createElement('td'))
+
       for(let d=1; d<=last.getDate(); d++){
-        if(tr.children.length===7){tb.appendChild(tr);tr=document.createElement('tr');}
-        const cur=new Date(year,month,d);
-        const idx=((dateDiffDays(base,cur)%8)+8)%8;
-        const s=cycle[idx];
-        const td=document.createElement('td');
-        td.innerHTML=`<span>${d}</span><span class="${s}">${s}</span>`;
-        tr.appendChild(td);
+        if(tr.children.length===7){
+          tbody.appendChild(tr)
+          tr=document.createElement('tr')
+        }
+        const cur=new Date(y,mo,d)
+        const idx=((diffDays(base,cur)%8)+8)%8
+        const s=cycle[idx]
+
+        const td=document.createElement('td')
+        if(cur.toDateString()===today.toDateString()) td.classList.add('today')
+
+        td.innerHTML=`<span>${d}</span><span class="${s}">${s}</span>`
+        tr.appendChild(td)
       }
-      while(tr.children.length<7)tr.appendChild(document.createElement('td'));
-      tb.appendChild(tr);
-      tbl.appendChild(tb);
-      div.appendChild(tbl);
-      container.appendChild(div);
+
+      while(tr.children.length<7) tr.appendChild(document.createElement('td'))
+      tbody.appendChild(tr)
+
+      table.appendChild(tbody)
+      box.appendChild(table)
+      container.appendChild(box)
     }
   }
-  btn.onclick=render;
-  render();
-})();
+
+  btn.onclick=render
+  render()
+})()
 </script>
 </body>
 </html>
